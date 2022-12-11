@@ -3,6 +3,7 @@ current_dir_path = os.path.dirname(os.path.realpath(__file__))
 print(current_dir_path)
 
 import torch as th
+from pathlib import Path
 import math
 import numpy as np
 from video_loader import VideoLoader
@@ -30,6 +31,7 @@ if __name__ == "__main__":
     parser.add_argument('--resnext101_model_path', type=str, default='model/resnext101.pth', help='Resnext model path')
     parser.add_argument('--s3d_model_path', type=str, default='model/s3d_howto100m.pth', help='S3GD model path')
     parser.add_argument('--datastore_base', type=str, default='.')
+    parser.add_argument('--overwrite', action='store_true')
     args = parser.parse_args()
 
 
@@ -57,34 +59,48 @@ if __name__ == "__main__":
 
     with th.no_grad():
         k = 0
+
         for data in loader:
             k += 1
             input_file = data['input'][0]
             output_file = data['output'][0]
+
+            if Path(output_file).exists() and not args.overwrite:
+                print(f"{output_file} exists. Skipping")
+
+                continue
+
             if len(data['video'].shape) > 3:
                 print('Computing features of video {}/{}: {}'.format(k + 1, n_dataset, input_file))
                 video = data['video'].squeeze()
+
                 if len(video.shape) == 4:
                     video = preprocess(video)
                     # Batch x 3 x T x H x W
+
                     if args.type == "raw_data":
                         features = video
                     else:
                         n_chunk = len(video)
                         features = th.cuda.FloatTensor(n_chunk, FEATURE_LENGTH[args.type]).fill_(0)
                         n_iter = int(math.ceil(n_chunk / float(args.batch_size)))
+
                         for i in range(n_iter):
                             min_ind = i * args.batch_size
                             max_ind = (i + 1) * args.batch_size
                             video_batch = video[min_ind:max_ind].cuda()
                             batch_features = model(video_batch)
+
                             if args.l2_normalize:
                                 batch_features = F.normalize(batch_features, dim=1)
                             features[min_ind:max_ind] = batch_features
                     features = features.cpu().numpy()
+
                     if args.half_precision:
                         features = features.astype('float16')
                     os.makedirs('/'.join(output_file.split('/')[:-1]), exist_ok=True)
-                    np.save(output_file, features)
+
+                    if not Path(output_file).exists() or args.overwrite:
+                        np.save(output_file, features)
             else:
                 print('Video {} already processed.'.format(input_file))

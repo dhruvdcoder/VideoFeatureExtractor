@@ -12,31 +12,38 @@ python extract.py --csv=input.csv --type=s3dg --batch_size=64 --num_decoding_thr
 
 import os
 import argparse
+from pathlib import Path
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Generate CSV')
 
-    parser.add_argument('--csv', type=str, help='input csv with video input path')
     parser.add_argument('--video_root_path', type=str, help='video path')
     parser.add_argument('--feature_root_path', type=str, help='feature path')
-    parser.add_argument('--csv_save_path', type=str, help='csv path', default='.')
+    parser.add_argument('--csv_save_path', type=str, help='csv path')
+    parser.add_argument('--overwrite', action='store_true')
     args = parser.parse_args()
 
     video_root_path = args.video_root_path
     feature_root_path = args.feature_root_path
 
-    csv_save_path = os.path.join(args.csv_save_path, args.csv)
+    csv_save_path = args.csv_save_path
     fp_wt = open(csv_save_path, 'w')
     line = "video_path,feature_path"
     fp_wt.write(line + "\n")
 
     all_files = os.walk(video_root_path)
+
     for path, d, filelist in all_files:
         for file_name in filelist:
+            if file_name.endswith('.part'):
+                continue  # incomplete file. Skip.
             video_path = os.path.join(path, file_name)
             video_id = video_path.replace("\\","/").split("/")[-1].split(".")[0]
             feature_path = os.path.join(feature_root_path, "{}.npy".format(video_id))
+
+            if Path(feature_path).exists() and not args.overwrite:
+                continue
             line = ",".join([video_path, feature_path])
             fp_wt.write(line + "\n")
 

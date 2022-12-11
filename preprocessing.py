@@ -47,7 +47,7 @@ class Preprocessing(object):
             # To Batch= T x 3 x H x W
             tensor_size = tensor.size()
             tensor = tensor.view(-1, self.FRAMERATE_DICT[self.type], 3, tensor_size[-2], tensor_size[-1])
-            # To Batch x 3 x T x H x W
+            # To Batch x 3 x T x H x W. Batch is actuall the time in seconds and T is the framerate, i.e. number of frames in one second.
             tensor = tensor.transpose(1, 2)
         elif self.type == 'raw_data':
             tensor = tensor / 255.0
@@ -58,5 +58,5 @@ class Preprocessing(object):
             # To Batch x 3 x T x H x W
             tensor = tensor.transpose(1, 2)
 
-        return tensor
+        return tensor #(total_time_in_sec, 3, frames per sec, H, W)
 

@@ -47,7 +47,6 @@ class VideoLoader(Dataset):
         video_path = self.csv['video_path'].values[idx]
         output_file = self.csv['feature_path'].values[idx]
         video = th.zeros(1)
-
         if not (os.path.isfile(output_file)) and os.path.isfile(video_path):
             print('Decoding video: {}'.format(video_path))
             try:
